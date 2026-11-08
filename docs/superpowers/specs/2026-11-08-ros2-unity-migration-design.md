@@ -95,30 +95,48 @@ commiteados, la carpeta `Kin/` (importación de Unity dentro del paquete ROS).
 - Copiar `Assets/`, `Packages/`, `ProjectSettings/`, `.gitignore`, `README.md`.
   **No** se copian `TempAssembly.dll`, `survey/`,
   `cuestionario_validacion_revisado.csv`.
-- `Packages/manifest.json`: añadir
+- `Packages/manifest.json`: **quitar** `com.siemens.ros-sharp` y añadir
   `com.unity.robotics.ros-tcp-connector`
-  (`https://github.com/Unity-Technologies/ROS-TCP-Connector.git?path=/com.unity.robotics.ros-tcp-connector`).
-- ROS# se mantiene instalado (el robot importado usa sus componentes URDF),
-  pero su conexión deja de usarse.
+  (`https://github.com/Unity-Technologies/ROS-TCP-Connector.git?path=/com.unity.robotics.ros-tcp-connector`)
+  y `com.unity.robotics.urdf-importer`
+  (`https://github.com/Unity-Technologies/URDF-Importer.git?path=/com.unity.robotics.urdf-importer`).
+  Todo Unity queda en un solo stack (Unity Robotics Hub).
+- **Modelo del robot:** se reimporta con el URDF Importer de Unity desde
+  `Assets/URDF/urdf/GEN3.urdf` (ya es idéntico al de ROS y sus mallas están
+  en `Assets/URDF/urdf/kinova_gen3_urdf/meshes/`, que es donde el importador
+  resuelve `package://kinova_gen3_urdf/…`; no hace falta tocarlo). La
+  importación se hace en el editor (clic derecho en `GEN3.urdf` → *Import
+  Robot from Selected URDF file*, *Axis Type* = `Z Axis` porque el URDF es de
+  ROS, *Mesh Decomposer* = `VHACD`) y la hace el usuario. Al quitar ROS#, el
+  robot viejo de la escena queda con scripts faltantes: se borra y se pone el
+  nuevo en su lugar, reasignando `RobotBaseTransform` y la pinza (`Garra`).
+- Basura de ROS1 dentro de `Assets/URDF/` (`CMakeLists.txt`, `package.xml`,
+  `launch/`, `rviz/`, `.vscode/`, `scripts/joint_state_pub.py`) se elimina: no
+  la usa Unity.
 - `Assets/URDF/scripts/KinovaPosePublisher.cs`: misma lógica que
   `KinovaPublisher.cs` (pinch → posición de la mano relativa a
   `RobotBaseTransform`, orientación identidad; botón Home con pose fija
   0.5/0.5/0.5), publicando `PoseStampedMsg` con `ROSConnection`. Conversión
   Unity→ROS con `To<FLU>()`.
 - `Assets/URDF/scripts/KinovaJointStateSubscriber.cs`: suscribe
-  `/joint_states`, busca cada `ArticulationBody` por nombre de joint y pone
-  `xDrive.target` en grados.
+  `/joint_states`, busca cada `UrdfJoint` del robot importado por `jointName`
+  y pone `xDrive.target` de su `ArticulationBody` en grados.
 - `KinovaPublisher.cs` original se elimina (lo sustituye el nuevo).
 - La escena no se edita a mano (YAML frágil); el README explica los pasos en
-  el editor: quitar `RosConnector`, `JointStateSubscriber`, el publisher viejo;
-  *Robotics → ROS Settings* → protocolo ROS2, IP del PC con ROS; añadir los dos
-  componentes nuevos y reasignar referencias.
+  el editor: reimportar el robot, quitar `RosConnector` y los componentes
+  ROS# que queden como "Missing Script"; *Robotics → ROS Settings* → protocolo
+  ROS2, IP del PC con ROS; añadir los dos componentes nuevos y reasignar
+  referencias.
+- No se porta nada de C# a Python: Unity (Quest 3 / Android) solo ejecuta C#,
+  y la IK ya se calcula en el robot. IK local con numpy queda fuera de alcance.
 
 ## Riesgos
 
 - ROS-TCP-Endpoint `main-ros2` está probado en Humble, no en Jazzy; puede
   necesitar un parche pequeño. Se verifica compilando.
-- Sin editor de Unity aquí: los scripts C# no se compilan en este entorno.
+- Sin editor de Unity aquí: los scripts C# no se compilan en este entorno y
+  la reimportación del robot la hace el usuario. Hasta hacerla, la escena
+  `ARM.unity` abre con el robot roto (scripts ROS# faltantes).
 - Sin brazo real aquí: la conexión Kortex no se prueba; solo que el nodo
   arranca y falla limpio sin robot.
 
