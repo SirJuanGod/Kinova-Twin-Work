@@ -10,9 +10,13 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-08-ros2-unity-migration-design.md`
 
-**Fuentes de referencia (solo lectura, ya clonadas):**
-- `REF_ROS=/tmp/claude-0/-home-user-Kinova-Twin-Work/b594139e-de5d-57a7-a8c7-5ee7dbe2cdcc/scratchpad/ref/kinova-ros-noetic-slrac`
-- `REF_UNITY=/tmp/claude-0/-home-user-Kinova-Twin-Work/b594139e-de5d-57a7-a8c7-5ee7dbe2cdcc/scratchpad/ref/Kinova-unity-digital-twin`
+**Fuentes de referencia (solo lectura; clonar fuera del repo al empezar):**
+```bash
+mkdir -p ~/kinova-ref && cd ~/kinova-ref
+git clone --depth 1 https://github.com/slrac03/kinova-ros-noetic-slrac
+git clone --depth 1 https://github.com/slrac03/Kinova-unity-digital-twin
+export REF_ROS=~/kinova-ref/kinova-ros-noetic-slrac REF_UNITY=~/kinova-ref/Kinova-unity-digital-twin
+```
 
 ## Global Constraints
 
@@ -23,30 +27,33 @@
 - Unity: `com.unity.robotics.ros-tcp-connector` en `https://github.com/Unity-Technologies/ROS-TCP-Connector.git?path=/com.unity.robotics.ros-tcp-connector#v0.7.0`; `com.unity.robotics.urdf-importer` en `https://github.com/Unity-Technologies/URDF-Importer.git?path=/com.unity.robotics.urdf-importer#v0.5.2`. Sin `com.siemens.ros-sharp`.
 - No se copian a `Unity/`: `TempAssembly.dll`, `survey/`, `cuestionario_validacion_revisado.csv`, `.vscode/`.
 - Nada de C# se porta a Python.
-- Commits terminan con las líneas de atribución de la sesión.
+- Trabajo en la rama `feat/ros2-unity-migration` creada desde `main`; push a esa rama tras cada tarea. Commits con las líneas de atribución de la sesión.
 
-## Entorno de verificación (este contenedor)
+## Entorno de ejecución
 
-`packages.ros.org` y el servidor de Kinova están bloqueados. Se usa RoboStack:
+PC del usuario: **WSL Ubuntu 24.04 con ROS2 Jazzy instalado por apt** (red
+mirrored), Unity 2022.3.22f1 en Windows, **MCP de Unity** (MCP for Unity,
+HTTP `127.0.0.1:8080/mcp`). Preparación: `docs/setup/wsl-ros2-unity-mcp.md`.
 
-```bash
-cd /tmp/claude-0/-home-user-Kinova-Twin-Work/b594139e-de5d-57a7-a8c7-5ee7dbe2cdcc/scratchpad
-curl -Ls https://github.com/mamba-org/micromamba-releases/releases/latest/download/micromamba-linux-64 -o micromamba && chmod +x micromamba
-./micromamba create -y -r ./mamba -n jazzy -c conda-forge -c robostack-jazzy \
-  ros-jazzy-ros-base ros-jazzy-robot-state-publisher ros-jazzy-sensor-msgs ros-jazzy-geometry-msgs \
-  colcon-common-extensions pytest
-# activar en cada shell:
-eval "$(./micromamba shell hook -s bash)" && micromamba activate -r ./mamba jazzy
-```
-
-La Kortex API **no** está disponible aquí: nada importable sin ella se prueba en este contenedor (ver Review Focus).
+- Repo en el disco de Windows, visto desde WSL en `/mnt/c/Users/<usuario>/Kinova-Twin-Work`.
+- Cada shell: `source /opt/ros/jazzy/setup.bash` (y `source ROS/install/setup.bash` tras compilar).
+- Sin `--symlink-install` (está en `/mnt/c`).
+- Antes de Task 1: `ros2 --help`, `python3 -c "import kortex_api"` y
+  `ping -c1 192.168.1.10`. Si Kortex no importa, arreglarlo primero
+  (ver setup doc §2.5) o seguir y dejar Task 2 Step 6 como pendiente.
+- Las tareas 1–4 no necesitan Unity. **Tras Task 4, parar** y pedir al
+  usuario: abrir `Unity/` en Unity Hub, esperar la importación de paquetes,
+  *Window → MCP for Unity → Start Server*, y en Claude Code `/mcp` para
+  reconectar `UnityMCP`. Las tareas 5–7 usan el MCP.
+- Brazo real: solo con permiso explícito del usuario en cada prueba que lo
+  mueva (Task 7). Lecturas (`/joint_states`) sí sin preguntar.
 
 ## Review Focus
 
-1. Arrancar `kinova_controller` sin robot / IP equivocada → un `[ERROR]` claro con la IP y salida con código ≠ 0, sin traceback. (Task 2, prueba manual en la máquina del usuario; documentado en README.)
+1. Arrancar `kinova_controller` sin robot / IP equivocada → un `[ERROR]` claro con la IP y salida con código ≠ 0, sin traceback. (Task 2 Step 6: `ros2 run kinova_mov kinova_controller --ros-args -p robot_ip:=192.168.1.250`.)
 2. El robot reporta 7 articulaciones (Gen3 7DOF) → `/joint_states` con `joint_1..joint_7`, no truncado a 6. (Task 2, `test_make_joint_state_uses_reported_count`.)
-3. Un `/controller` llega mientras el brazo aún se mueve → `/joint_states` sigue publicándose (grupos de callback separados). (Task 2, verificación manual con el robot; README.)
-4. Unity recibe `/joint_states` con nombres que no existen en el robot importado (p. ej. joints de la pinza) → se ignoran sin excepción. (Task 5, revisión de código: `TryGetValue`.)
+3. Un `/controller` llega mientras el brazo aún se mueve → `/joint_states` sigue publicándose (grupos de callback separados). (Task 7, `ros2 topic hz /joint_states` durante un movimiento.)
+4. Unity recibe `/joint_states` con nombres que no existen en el robot importado (p. ej. joints de la pinza) → se ignoran sin excepción. (Task 7: con `fake_joint_states` + un publicador de `left_finger_joint`, consola de Unity sin errores.)
 5. ROS-TCP-Endpoint no compila/arranca en Jazzy → se parchea en el fork local o se documenta. (Task 3, `colcon build` + puerto 10000 escuchando.)
 
 ---
@@ -66,7 +73,7 @@ La Kortex API **no** está disponible aquí: nada importable sin ella se prueba 
 - Produces: paquete `kinova_gen3_description` que instala `urdf/`, `meshes/`, `rviz/`, `launch/` en `share/` y `fake_joint_states.py` en `lib/kinova_gen3_description/`.
 - Produces: `display.launch.py` con args `fake` (default `false`) y `rviz` (default `true`).
 
-- [ ] **Step 1: Montar entorno** (sección "Entorno de verificación"). Esperado: `ros2 --help` funciona.
+- [ ] **Step 1: Comprobar entorno** (sección "Entorno de ejecución") y clonar las referencias. Esperado: `ros2 --help` funciona, `$REF_ROS` y `$REF_UNITY` existen.
 - [ ] **Step 2: Copiar URDF, mallas y rviz; reescribir rutas.** Verificación: todas las mallas referenciadas existen:
   ```bash
   cd ROS/src/kinova_gen3_description && grep -oE 'package://kinova_gen3_description/[^"]+' urdf/GEN3.urdf | sort -u | sed 's#package://kinova_gen3_description/##' | xargs -I{} test -f {} && echo OK
@@ -126,7 +133,7 @@ La Kortex API **no** está disponible aquí: nada importable sin ella se prueba 
   - `check_for_end_or_abort(e)` igual que el original.
   - `main()`: `rclpy.init`; crea nodo; lee params; `try: with DeviceConnection(ip, credentials=(u, p)) as router:` → `node.start(BaseClient(router))`; `MultiThreadedExecutor().add_node(node)`; `spin()`. `except Exception as ex`: `node.get_logger().error(f"No se pudo conectar al robot en {ip}: {ex}")` y `sys.exit(1)`. `KeyboardInterrupt` → salida limpia. Siempre `node.destroy_node(); rclpy.try_shutdown()`.
   - Imports de kortex igual que el original (`BaseClient`, `KServerException`, `Base_pb2`).
-- [ ] **Step 6: Comprobación estática** (kortex no disponible aquí): `python -m py_compile ROS/src/kinova_mov/kinova_mov/*.py && colcon build --packages-select kinova_mov && ros2 pkg executables kinova_mov`. Esperado: `kinova_mov kinova_controller`.
+- [ ] **Step 6: Comprobar arranque y fallo limpio:** `colcon build --packages-select kinova_mov && source install/setup.bash && ros2 pkg executables kinova_mov` → `kinova_mov kinova_controller`. Luego `ros2 run kinova_mov kinova_controller --ros-args -p robot_ip:=192.168.1.250; echo "exit=$?"` → una línea `[ERROR] … 192.168.1.250 …`, sin traceback, `exit=1`. (Si Kortex no importa en el entorno, dejar este paso marcado como pendiente y decirlo.)
 - [ ] **Step 7: Commit** `feat(ros): port kinova_mov controller to rclpy`
 
 ### Task 3: ROS-TCP-Endpoint y launch para Unity
@@ -163,14 +170,15 @@ La Kortex API **no** está disponible aquí: nada importable sin ella se prueba 
 
 **Files:**
 - Create: `Unity/` ← `$REF_UNITY/{Assets,Packages,ProjectSettings,.gitignore,README.md}`
-- Modify: `Unity/Packages/manifest.json` (quitar `com.siemens.ros-sharp`, añadir los dos paquetes de Global Constraints)
+- Modify: `Unity/Packages/manifest.json` (quitar `com.siemens.ros-sharp`, añadir los dos paquetes de Global Constraints y `"com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#v10.3.0"` para el MCP del editor)
 - Modify: `Unity/Packages/packages-lock.json` (quitar el bloque `com.siemens.ros-sharp`)
 - Delete: `Unity/Assets/URDF/{CMakeLists.txt,package.xml,launch,rviz,.vscode,scripts/joint_state_pub.py,scripts/KinovaPublisher.cs}` y sus `.meta`
 
 - [ ] **Step 1: Copiar** con `rsync -a` las rutas listadas (sin `.git`).
-- [ ] **Step 2: Editar `manifest.json` / `packages-lock.json`.** Verificación: `python -m json.tool` en ambos sin error; `grep -c ros-sharp Unity/Packages/*.json` → `0`; `grep -c 'robotics' Unity/Packages/manifest.json` → `2`.
+- [ ] **Step 2: Editar `manifest.json` / `packages-lock.json`.** Verificación: `python -m json.tool` en ambos sin error; `grep -c ros-sharp Unity/Packages/*.json` → `0`; `grep -c 'robotics' Unity/Packages/manifest.json` → `2`; `grep -c unity-mcp Unity/Packages/manifest.json` → `1`.
 - [ ] **Step 3: Borrar residuos ROS1.** Verificación: `grep -rl RosSharp Unity/Assets --include=*.cs` → vacío; `ls Unity/TempAssembly.dll Unity/survey 2>&1` → no existen; `du -sh Unity` ≈ 60 MB y ningún archivo > 50 MB (`find Unity -size +50M` vacío).
 - [ ] **Step 4: Commit** `feat(unity): import Unity project, switch to Unity Robotics Hub packages`
+- [ ] **Step 5: PARAR y pedir al usuario** que abra `Unity/`, espere los paquetes, arranque *Window → MCP for Unity → Start Server* (HTTP, 8080) y ejecute `/mcp` en Claude Code. Esperado: las herramientas `mcp__UnityMCP__*` disponibles. Si la consola de Unity ya muestra errores (scripts ROS# faltantes en la escena son esperados; errores de compilación no), anotarlos.
 
 ### Task 5: Scripts C# de comunicación
 
@@ -183,17 +191,42 @@ La Kortex API **no** está disponible aquí: nada importable sin ella se prueba 
 
 - [ ] **Step 1: `KinovaPosePublisher : MonoBehaviour`** (sin namespace RosSharp). Campos públicos con los mismos nombres que `KinovaPublisher.cs` original para reasignar fácil: `poseText`, `RobotBaseTransform`, `FrameId="base_link"`, `RHand`, `RightHand`, más `topicName="/controller"`. Comportamiento idéntico al original: publicar una vez por flanco de pinch en `FixedUpdate`; `OnButtonClick()` publica `(0.5, 0.5, 0.5)` con orientación identidad y pone `poseText.text = "Home"`; `UpdateMessage()` usa `RobotBaseTransform.transform.InverseTransformPoint(RightHand.position).To<FLU>()`, orientación identidad, mismo texto en español (`"Posición relativa enviada:\n(x, y, z)"` con `F2`), y `Debug.LogError("RobotBaseTransform not asigned")` si falta. Header con `frame_id = FrameId` y stamp actual (`new TimeStamp(Clock.time)` de `Unity.Robotics.Core`). Se mantiene `[RequireComponent(typeof(Button))]`.
 - [ ] **Step 2: `KinovaJointStateSubscriber : MonoBehaviour`**: campos `topicName="/joint_states"`, `robotRoot` (GameObject). En `Start`: diccionario `jointName → ArticulationBody` desde `robotRoot.GetComponentsInChildren<UrdfJoint>()`, y `Subscribe<JointStateMsg>`. En el callback: para cada `name[i]` con `TryGetValue`, `var d = ab.xDrive; d.target = (float)(position[i] * Mathf.Rad2Deg); ab.xDrive = d;`. Nombres desconocidos se ignoran.
-- [ ] **Step 3: Verificación** (no hay editor de Unity aquí): revisión de que solo se usan las APIs del bloque Interfaces y `grep -n "RosSharp" Unity/Assets/URDF/scripts/*.cs` vacío. Si `dotnet`/`mcs` existen, no se usan: no hay ensamblados de Unity para compilar contra ellos.
+- [ ] **Step 3: Verificación con el MCP de Unity:** refrescar assets / forzar recompilación y leer la consola del editor. Esperado: **0 errores de compilación** (CS####). `grep -n "RosSharp" Unity/Assets/URDF/scripts/*.cs` vacío.
 - [ ] **Step 4: Commit** `feat(unity): ROS2 pose publisher and joint state subscriber`
 
-### Task 6: README
+### Task 6: Integración en la escena `ARM.unity` (vía MCP de Unity)
+
+**Files:**
+- Modify (desde el editor, vía MCP): `Unity/Assets/Scenes/ARM.unity`, `Unity/ProjectSettings/` (ROS Settings), assets generados por el URDF Importer bajo `Unity/Assets/URDF/urdf/`.
+
+**Interfaces:**
+- Consumes: `KinovaPosePublisher`, `KinovaJointStateSubscriber` (Task 5).
+
+- [ ] **Step 1: Inventario antes de tocar:** con el MCP, listar en `ARM.unity` el robot viejo (GameObject raíz del GEN3), su posición/rotación/escala, su padre, la `Garra` y dónde cuelga, el objeto con el publisher viejo (Missing Script), el `RosConnector`, y quién referencia a quién (`RobotBaseTransform`, `RHand`, `RightHand`, `poseText`, `OnClick` del botón). Guardar ese inventario en la respuesta al usuario.
+- [ ] **Step 2: Importar el robot:** `Assets/URDF/urdf/GEN3.urdf` con el URDF Importer (*Axis Type* `Z Axis`, *Mesh Decomposer* `VHACD`). Si la importación no se puede disparar por MCP (ventana modal), pedir al usuario que haga clic derecho → *Import Robot from Selected URDF file* y continuar.
+- [ ] **Step 3: Sustituir en la escena:** poner el robot nuevo con el mismo transform/padre que el viejo; `ArticulationBody` de `base_link` → `Immovable = true`; volver a colgar la `Garra` del mismo link; borrar el robot viejo y el `RosConnector`; quitar componentes "Missing Script".
+- [ ] **Step 4: Componentes nuevos:** `KinovaJointStateSubscriber` en el robot (`robotRoot` = robot nuevo); `KinovaPosePublisher` en el objeto del botón que tenía el publisher viejo, reasignando `RobotBaseTransform` (= `base_link` del robot nuevo), `RHand`, `RightHand`, `poseText`, y el `OnClick` del botón → `KinovaPosePublisher.OnButtonClick`.
+- [ ] **Step 5: ROS Settings:** Protocol `ROS2`, `ROS IP Address` `127.0.0.1`, puerto `10000` (para el build de Quest 3 se cambia a la IP del PC; documentarlo en README).
+- [ ] **Step 6: Verificación:** guardar escena; consola sin errores; con el MCP, buscar componentes "Missing" en la escena → 0.
+- [ ] **Step 7: Commit** `feat(unity): wire ARM scene to ROS2 via ROS-TCP-Connector`
+
+### Task 7: Prueba de extremo a extremo
+
+- [ ] **Step 1: Sin robot:** WSL: `ros2 launch kinova_gen3_description display.launch.py fake:=true rviz:=false` y `ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=0.0.0.0`. Unity (MCP): Play en `ARM.unity`. Esperado: el robot virtual oscila (leer con el MCP el `xDrive.target` de 2 joints en dos instantes distintos → valores diferentes); HUD de ROS-TCP-Connector en verde; consola sin errores.
+- [ ] **Step 2: Nombres desconocidos (Review Focus 4):** con Play activo, `ros2 topic pub --once /joint_states sensor_msgs/msg/JointState "{name: [left_finger_joint, no_existe], position: [0.1, 0.2]}"`. Esperado: consola de Unity sin excepciones.
+- [ ] **Step 3: Unity → ROS:** con Play activo, invocar por MCP `KinovaPosePublisher.OnButtonClick()` y en WSL `ros2 topic echo /controller --once`. Esperado: `position: {x: 0.5, y: 0.5, z: 0.5}`, `frame_id: base_link`. (Sin `kinova_controller` corriendo: no mueve nada.)
+- [ ] **Step 4: Con robot (pedir permiso explícito antes de mover):** `ros2 launch kinova_mov kinova_unity.launch.py robot_ip:=192.168.1.10`. Esperado: el brazo va a `Home`, `/joint_states` a ~10 Hz (`ros2 topic hz`), el robot virtual imita al real. Luego, con permiso, `OnButtonClick` → el brazo se mueve a la pose Home de Unity y, **durante** el movimiento, `ros2 topic hz /joint_states` sigue ~10 Hz (Review Focus 3).
+- [ ] **Step 5:** anotar resultados (pasó / pendiente / falló con salida) para el README y el resumen final.
+
+### Task 8: README
 
 **Files:**
 - Modify: `README.md` (raíz, en español)
 
 - [ ] **Step 1: Escribir**, en este orden:
   1. Qué es y estructura `ROS/` + `Unity/`.
-  2. ROS2: instalar Jazzy (Ubuntu 24.04), `pip install` del wheel de Kortex API 2.6 (`kortex_api-2.6.0.post3-py3-none-any.whl` desde el artifactory de Kinova, y `protobuf==3.20.*` si choca), `cd ROS && vcs import src < ros2.repos && rosdep install --from-paths src -y --ignore-src && colcon build`, IP del PC en `192.168.1.X`, comando `ros2 launch kinova_mov kinova_unity.launch.py robot_ip:=192.168.1.10`. Prueba sin robot: `ros2 launch kinova_gen3_description display.launch.py fake:=true`. Notas Jazzy del Task 3 si hubo parche.
-  3. Unity (pasos en el editor): abrir `Unity/` con 2022.3.22f1 → esperar paquetes; clic derecho `Assets/URDF/urdf/GEN3.urdf` → *Import Robot from Selected URDF file* (*Axis Type* `Z Axis`, *Mesh Decomposer* `VHACD`); en `ARM.unity` borrar el robot viejo (Missing Scripts) y el `RosConnector`, colocar el nuevo en la misma posición, marcar `Immovable` en el `ArticulationBody` de `base_link`, volver a montar la `Garra`; *Robotics → ROS Settings*: Protocol `ROS2`, IP del PC con ROS, puerto `10000`; añadir `KinovaJointStateSubscriber` (robotRoot = robot) y `KinovaPosePublisher` en el objeto del botón (reasignar `RobotBaseTransform`, `RHand`, `RightHand`, `poseText`, y el `OnClick` del botón a `OnButtonClick`).
-  4. Comprobaciones manuales con el robot (Review Focus 1 y 3).
-- [ ] **Step 2: Commit** `docs: README for ROS2 + Unity setup` y `git push -u origin bicoding/cool-carson-eaubdk`.
+  2. Preparar el PC: enlace a `docs/setup/wsl-ros2-unity-mcp.md` (WSL, Jazzy, Kortex API, MCP). Compilar: `cd ROS && vcs import src < ros2.repos && rosdep install --from-paths src -y --ignore-src && colcon build`. Arrancar: `ros2 launch kinova_mov kinova_unity.launch.py robot_ip:=192.168.1.10`. Prueba sin robot: `ros2 launch kinova_gen3_description display.launch.py fake:=true`. Notas Jazzy del Task 3 si hubo parche; resultado real de la instalación de Kortex (qué comandos funcionaron).
+  3. Unity — lo que hizo la Task 6, como pasos manuales para quien no use el MCP: abrir `Unity/` con 2022.3.22f1 → esperar paquetes; clic derecho `Assets/URDF/urdf/GEN3.urdf` → *Import Robot from Selected URDF file* (*Axis Type* `Z Axis`, *Mesh Decomposer* `VHACD`); en `ARM.unity` borrar el robot viejo (Missing Scripts) y el `RosConnector`, colocar el nuevo en la misma posición, marcar `Immovable` en el `ArticulationBody` de `base_link`, volver a montar la `Garra`; *Robotics → ROS Settings*: Protocol `ROS2`, IP del PC con ROS, puerto `10000`; añadir `KinovaJointStateSubscriber` (robotRoot = robot) y `KinovaPosePublisher` en el objeto del botón (reasignar `RobotBaseTransform`, `RHand`, `RightHand`, `poseText`, y el `OnClick` del botón a `OnButtonClick`).
+  4. Build para Quest 3: en *Robotics → ROS Settings* poner la IP del PC (no `127.0.0.1`) y la regla Hyper-V del setup doc.
+  5. Resultados de la Task 7 (qué se probó y qué quedó pendiente).
+- [ ] **Step 2: Commit** `docs: README for ROS2 + Unity setup` y `git push -u origin feat/ros2-unity-migration`. Preguntar al usuario si quiere fusionar a `main`.
