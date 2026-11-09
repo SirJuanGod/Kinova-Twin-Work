@@ -312,8 +312,8 @@ ArticulationBody:
   m_XDrive:
     lowerLimit: 0
     upperLimit: 46.40958
-    stiffness: 0
-    damping: 0
+    stiffness: 10000
+    damping: 100
     forceLimit: 1000
     target: 0
     targetVelocity: 0
@@ -1137,9 +1137,9 @@ ArticulationBody:
   m_XDrive:
     lowerLimit: -147.25015
     upperLimit: 147.25015
-    stiffness: 0
-    damping: 0
-    forceLimit: 39
+    stiffness: 10000
+    damping: 100
+    forceLimit: 1000
     target: 0
     targetVelocity: 0
     driveType: 0
@@ -1288,8 +1288,8 @@ ArticulationBody:
   m_XDrive:
     lowerLimit: -50.173916
     upperLimit: 50.173916
-    stiffness: 0
-    damping: 0
+    stiffness: 10000
+    damping: 100
     forceLimit: 1000
     target: 0
     targetVelocity: 0
@@ -1570,9 +1570,9 @@ ArticulationBody:
   m_XDrive:
     lowerLimit: 0
     upperLimit: 0
-    stiffness: 0
-    damping: 0
-    forceLimit: 9
+    stiffness: 10000
+    damping: 100
+    forceLimit: 1000
     target: 0
     targetVelocity: 0
     driveType: 0
@@ -2491,9 +2491,9 @@ ArticulationBody:
   m_XDrive:
     lowerLimit: 0
     upperLimit: 0
-    stiffness: 0
-    damping: 0
-    forceLimit: 9
+    stiffness: 10000
+    damping: 100
+    forceLimit: 1000
     target: 0
     targetVelocity: 0
     driveType: 0
@@ -3834,9 +3834,9 @@ ArticulationBody:
   m_XDrive:
     lowerLimit: -119.748184
     upperLimit: 119.748184
-    stiffness: 0
-    damping: 0
-    forceLimit: 9
+    stiffness: 10000
+    damping: 100
+    forceLimit: 1000
     target: 0
     targetVelocity: 0
     driveType: 0
@@ -5186,9 +5186,9 @@ ArticulationBody:
   m_XDrive:
     lowerLimit: 0
     upperLimit: 0
-    stiffness: 0
-    damping: 0
-    forceLimit: 39
+    stiffness: 10000
+    damping: 100
+    forceLimit: 1000
     target: 0
     targetVelocity: 0
     driveType: 0
@@ -5693,9 +5693,9 @@ ArticulationBody:
   m_XDrive:
     lowerLimit: -128.34254
     upperLimit: 128.34254
-    stiffness: 0
-    damping: 0
-    forceLimit: 39
+    stiffness: 10000
+    damping: 100
+    forceLimit: 1000
     target: 0
     targetVelocity: 0
     driveType: 0
@@ -6073,8 +6073,8 @@ ArticulationBody:
   m_XDrive:
     lowerLimit: 0
     upperLimit: 50.173916
-    stiffness: 0
-    damping: 0
+    stiffness: 10000
+    damping: 100
     forceLimit: 1000
     target: 0
     targetVelocity: 0
@@ -8259,8 +8259,8 @@ ArticulationBody:
   m_XDrive:
     lowerLimit: 0
     upperLimit: 50.173916
-    stiffness: 0
-    damping: 0
+    stiffness: 10000
+    damping: 100
     forceLimit: 1000
     target: 0
     targetVelocity: 0
@@ -11063,8 +11063,8 @@ ArticulationBody:
   m_XDrive:
     lowerLimit: -50.173916
     upperLimit: 50.173916
-    stiffness: 0
-    damping: 0
+    stiffness: 10000
+    damping: 100
     forceLimit: 1000
     target: 0
     targetVelocity: 0
@@ -11587,7 +11587,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1815690519}
   - component: {fileID: 1815690524}
-  - component: {fileID: 1815690523}
   - component: {fileID: 1815690520}
   - component: {fileID: 1815690522}
   - component: {fileID: 1815690521}
@@ -11679,28 +11678,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.12782322, y: 1.3256996, z: 0.13649112}
   m_Center: {x: 0.009408496, y: 0.6628498, z: -0.000000029802322}
---- !u!114 &1815690523
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1815690518}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d607ea46a579d44c4b19a6322ce4b9b2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  selectedJoint: 
-  selectedIndex: 0
-  control: 0
-  stiffness: 0
-  damping: 0
-  forceLimit: 0
-  speed: 5
-  torque: 100
-  acceleration: 5
-  highLightColor: {r: 1, g: 0, b: 0, a: 1}
 --- !u!114 &1815690524
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12123,8 +12100,8 @@ ArticulationBody:
   m_XDrive:
     lowerLimit: 0
     upperLimit: 45.836624
-    stiffness: 0
-    damping: 0
+    stiffness: 10000
+    damping: 100
     forceLimit: 1000
     target: 0
     targetVelocity: 0
@@ -13379,6 +13356,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1815690519}
     m_Modifications:
+    - target: {fileID: 1495844928178204637, guid: 2736ae6c5c9206645817b5ca3b0b1e86, type: 3}
+      propertyPath: m_IsTrigger
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5177247945109701900, guid: 2736ae6c5c9206645817b5ca3b0b1e86, type: 3}
       propertyPath: m_Name
       value: Sphere
