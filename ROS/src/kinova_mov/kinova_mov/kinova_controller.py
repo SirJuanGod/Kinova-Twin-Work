@@ -186,7 +186,10 @@ def main(args=None):
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     except Exception as ex:
-        node.get_logger().error(f"No se pudo conectar al robot en {ip}: {ex}")
+        if node.base is None:
+            node.get_logger().error(f"No se pudo conectar al robot en {ip}: {ex}")
+        else:
+            node.get_logger().error(f"Error con el robot en {ip}, se detiene el nodo: {ex}")
         exit_code = 1
     finally:
         node.destroy_node()
